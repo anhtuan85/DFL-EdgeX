@@ -121,29 +121,6 @@ def getperformance():
         return response
     
     return send_from_directory(temp_dir, 'performance_files.zip', as_attachment=True)
-
-
-
-
-@app.route('/NASparameters',methods=['GET'])
-def NASparameters():
-    return jsonify({'maxparams': 40214})
-
-@app.route('/start_nas',methods=['GET'])
-def start_NAS():
-    get_Node_code()
-    importlib.import_module('SLNode')
-    imp_module = importlib.reload(sys.modules['SLNode'])
-    
-    URL = 'http://' +str(DTconfig['DT_IP'])+':'+str(DTconfig['DT_Port'])+"/supernettonodes"
-    response = requests.get(URL)
-    supernet = response.json()
-    
-    nas = imp_module.NAS(supernet['neurons'],supernet['searchspacesize'],supernet['activations'], client_config['IP'],client_config['Port'])
-    
-    nas.train_supernet()
-    return jsonify({'status': 1})
-    
     
 if __name__ == '__main__':  
     set_configuration()

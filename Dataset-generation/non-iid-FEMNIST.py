@@ -62,7 +62,7 @@ def make_femnist_dirichlet(list_paths= [], n_clients=8, alpha = 0.5):
 
 if __name__ == "__main__":
     num_clients = 8
-    BASE_FOLDER = "./Non-IID-CIFAR/"
+    BASE_FOLDER = "./Non-IID-FEMNIST/"
     split_data = 0.8
     alpha = 0.2
     list_paths = ["./data/femnist/data/all_data/all_data_0.json",
