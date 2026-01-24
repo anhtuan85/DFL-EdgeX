@@ -45,7 +45,7 @@ Send the POST request to : `your_address:59881/api/v2/deviceservice`
 ```
 
 ## Register device name
-Send the POST request to : `your_address:59881/api/v2/deviceservice`
+Send the POST request to : `your_address:59881/api/v2/devices`
 ```
 [{
     "apiVersion": "v2",
@@ -64,5 +64,17 @@ Send the POST request to : `your_address:59881/api/v2/deviceservice`
         }
     }
 }]
+
+```
+
+## Create strem flow in EdgeX
+Send the POST request to : `your_address:59720/streams`
+```
+curl -X POST \
+  http://localhost:59720/streams \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "sql": "create stream demo() WITH (FORMAT=\"JSON\", TYPE=\"edgex\")"
+}'
 
 ```
