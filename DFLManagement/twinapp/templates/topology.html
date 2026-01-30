@@ -1,0 +1,565 @@
+{% extends 'home.html'%}
+
+{% block content%}
+{% csrf_token %}
+{% load static %}
+
+<style>
+  :root{
+    --bg: #0b1220;
+    --panel: rgba(255,255,255,0.08);
+    --panel2: rgba(255,255,255,0.06);
+    --border: rgba(255,255,255,0.14);
+    --text: #eaf0ff;
+    --muted: rgba(234,240,255,0.70);
+    --primary: #6d5efc;
+    --accent: #4fd1c5;
+    --danger: #ff5a7a;
+    --warn: #ffcc66;
+    --ok: #3ddc97;
+    --shadow: 0 14px 40px rgba(0,0,0,0.35);
+  }
+
+  body{
+    background: radial-gradient(1200px 600px at 20% 10%, rgba(109,94,252,0.25), transparent 60%),
+                radial-gradient(900px 500px at 80% 30%, rgba(79,209,197,0.18), transparent 55%),
+                var(--bg);
+    color: var(--text);
+  }
+
+  .topology-wrap{
+    padding: 28px 16px 60px;
+  }
+
+  .topology-grid{
+    display: grid;
+    grid-template-columns: 360px 1fr 360px;
+    gap: 16px;
+    align-items: start;
+    margin-top: 48px;
+  }
+
+  @media (max-width: 1200px){
+    .topology-grid{ grid-template-columns: 1fr; }
+  }
+
+  .panel{
+    background: linear-gradient(180deg, var(--panel), var(--panel2));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .panel-header{
+    padding: 18px 18px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .panel-title{
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: .2px;
+    display:flex;
+    align-items:center;
+    gap: 10px;
+  }
+
+  .dot{
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--primary);
+    box-shadow: 0 0 0 6px rgba(109,94,252,0.18);
+  }
+
+  .chip{
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    background: rgba(79,209,197,0.14);
+    border: 1px solid rgba(79,209,197,0.28);
+    padding: 6px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .panel-body{
+    padding: 18px;
+  }
+
+  .form-label, label{
+    color: var(--muted);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .form-control{
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 12px 14px;
+    height: auto;
+    transition: all 0.18s ease;
+  }
+
+  .form-control:focus{
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(109,94,252,0.55);
+    box-shadow: 0 0 0 0.2rem rgba(109,94,252,0.18);
+    color: var(--text);
+  }
+
+  select.form-control option{
+    color: #0b1220;
+  }
+
+  .btn-primary{
+    border: 0;
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-weight: 800;
+    letter-spacing: .2px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    box-shadow: 0 12px 24px rgba(109,94,252,0.22);
+    transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+  }
+  .btn-primary:hover{
+    filter: brightness(1.02);
+    box-shadow: 0 16px 30px rgba(109,94,252,0.28);
+    transform: translateY(-1px);
+  }
+
+  .divider{
+    height: 1px;
+    width: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,90,122,0.65), transparent);
+    margin: 16px 0 0;
+  }
+
+  /* Viewer areas */
+  .scroll-area{
+    max-height: 520px;
+    overflow: auto;
+    padding-right: 4px;
+  }
+
+  /* Make your node buttons look consistent */
+  .offlinenodes{
+    border-radius: 12px !important;
+    font-weight: 700;
+    padding: 10px 12px;
+  }
+  .btn-outline-success{
+    border-radius: 12px !important;
+    font-weight: 700;
+    padding: 10px 12px;
+    color: rgba(234,240,255,0.92);
+    border-color: rgba(61,220,151,0.65);
+    background: rgba(61,220,151,0.06);
+  }
+  .btn-outline-success:hover{
+    background: rgba(61,220,151,0.14);
+    color: var(--text);
+  }
+
+  /* Neighbor cards created in JS */
+  #divTopologyViewer .card{
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  #divTopologyViewer .card-body{
+    border: 0 !important; /* your JS adds black border inline; override */
+    padding: 14px !important;
+  }
+
+  /* Activate badge */
+  .badge.bg-primary.customized-badge{
+    background: rgba(109,94,252,0.20) !important;
+    border: 1px solid rgba(109,94,252,0.35);
+    cursor: pointer;
+    padding: 7px 10px;
+    border-radius: 999px;
+  }
+  .badge.bg-success.customized-badge{
+    background: rgba(61,220,151,0.20) !important;
+    border: 1px solid rgba(61,220,151,0.40);
+    cursor: pointer;
+    padding: 7px 10px;
+    border-radius: 999px;
+  }
+
+  /* Routing table */
+  #routingtable .table{
+    color: var(--text);
+    background: rgba(255,255,255,0.04);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+  #routingtable .table th{
+    background: rgba(255,255,255,0.06);
+    color: rgba(234,240,255,0.82);
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    font-weight: 800;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+  }
+  #routingtable .table td{
+    border-top: 1px solid rgba(255,255,255,0.08);
+    vertical-align: middle;
+  }
+
+  .note{
+    margin-top: 14px;
+    color: rgba(234,240,255,0.72);
+    background: rgba(255,255,255,0.05);
+    border: 1px dashed rgba(255,255,255,0.18);
+    border-radius: 14px;
+    padding: 12px 12px;
+    line-height: 1.35;
+    font-size: 13px;
+  }
+</style>
+
+<div class="topology-wrap">
+  <div class="topology-grid">
+
+    <!-- Left: Constructor -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot"></span>Topology Constructor</div>
+        <span class="chip">Builder</span>
+      </div>
+      <div class="panel-body">
+        <label for="selectTopology" class="form-label" style="font-size: 16px;">Select Topology</label>
+        <select class="form-control" id="selectTopology" style="height: 140px;">
+          <option value="0">Select Topology</option>
+          <option value="1">Ring Topology</option>
+          <option value="2">Mash Topology</option>
+          <option value="3">Customize Topology</option>
+        </select>
+
+        <div style="height: 14px;"></div>
+
+        <button class="btn btn-primary" id="btnUpdateTopology" style="width: 100%;">Update Topology</button>
+        <div class="divider"></div>
+      </div>
+    </div>
+
+    <!-- Middle: Topology Viewer -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot" style="background: var(--accent); box-shadow: 0 0 0 6px rgba(79,209,197,0.16);"></span>Topology Viewer</div>
+        <span class="chip">Preview</span>
+      </div>
+      <div class="panel-body">
+        <div id="divTopologyViewer" class="scroll-area">
+          <br>
+        </div>
+
+        <div id="divCustomizedTopologyButton">
+          <button id="btnUpdateCustomizedTopology" class="btn btn-primary" style="width: 100%; margin-top: 14px;">
+            Update Customized Topology
+          </button>
+          <div class="note">
+            <b>Note:</b> Add neighbors by activating a node, then selecting neighbors from the list.
+            The node will send the model to the specified neighbors.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Registered Nodes -->
+    <div class="panel" id="divCustomizedTopology">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot" style="background: var(--warn); box-shadow: 0 0 0 6px rgba(255,204,102,0.16);"></span>Registered Nodes</div>
+        <span class="chip">Devices</span>
+      </div>
+      <div class="panel-body">
+        <div id="deviceViewer" class="scroll-area"><br></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Routing table -->
+  <div style="margin-top: 18px;">
+    <div id="routingtable"></div>
+  </div>
+</div>
+
+<script type="text/javascript">
+  var csrf = $('input[name =csrfmiddlewaretoken]').val();
+  img = `<img id="imgTopology" style="width: 100%" src= "{%static 'imgs/selectTopology.png'%}"/>`
+  $("#divTopologyViewer").append(img);
+  $("#divCustomizedTopology").hide()
+  $("#divCustomizedTopologyButton").hide()
+
+  $('#selectTopology').change(function(){
+    selected = $(this).val()
+    if(selected =='0'){
+      $("#divCustomizedTopology").hide()
+      $("#divCustomizedTopologyButton").hide()
+      $("#divTopologyViewer").empty();
+      img = `<img id="imgTopology" style="width: 100%" src= "{%static 'imgs/selectTopology.png'%}"/>`
+      $("#divTopologyViewer").append(img);
+    }
+    if(selected =='1'){
+      $("#divCustomizedTopology").hide()
+      $("#divCustomizedTopologyButton").hide()
+      $("#divTopologyViewer").empty();
+      img = `<img id="imgTopology" style="width: 100%" src= "{%static 'imgs/star.png'%}"/>`
+      $("#divTopologyViewer").append(img);
+    }
+    if(selected =='2'){
+      $("#divCustomizedTopology").hide()
+      $("#divCustomizedTopologyButton").hide()
+      $("#divTopologyViewer").empty();
+      img = `<img id="imgTopology" style="width: 100%" src= "{%static 'imgs/mash.png'%}"/>`
+      $("#divTopologyViewer").append(img);
+    }
+    if(selected =='3'){
+      $("#divCustomizedTopology").show()
+      $("#divCustomizedTopologyButton").show()
+      $("#divTopologyViewer").empty();
+      update_devices();
+    }
+  });
+
+  var neighbors_dict = {}
+  var txtActiveField = ""
+  var activated_node = 0;
+
+  function update_devices(){
+    var alldevices = {}
+    $.ajax({
+      data:{
+        r_type: 'getDevices',
+        csrfmiddlewaretoken : csrf
+      },
+      type: 'POST',
+      url: '\APIs'
+    }).done(function(data){
+      $('#deviceViewer').empty()
+      $.each(data.devices , async function(i,val){
+        var device_id = val[0]
+        var device_ip = val[1]
+        var device_port = val[2]
+        var device_status = val[3]
+
+        alldevices[device_id] = device_ip +":"+ device_port
+        if(device_status == 0){
+          device_html = `<button class='btn btn-danger offlinenodes' style="margin-top: 6px; width: 100%" >`+device_ip+':'+device_port+`</button>`
+        }else{
+          device_html = `<button class='btn btn-outline-success' style="margin-top: 6px; width: 100%" value = `+device_id+` id = 'node`+device_id+`'>`+device_ip+':'+device_port+`</button>`
+          neighbor_div = `<div class="card">
+            <div class='card-body'>
+              <b style='color: rgba(234,240,255,0.9)'>`+device_ip+':'+device_port+`
+                <button class="badge bg-primary customized-badge" id='activateDev`+device_id+`' value='`+device_id+`'>Activate</button>
+              </b>
+              <div id='divNeighbor`+device_id+`' style="margin-top:10px;"></div>
+            </div>
+          </div>`
+
+          $('#divTopologyViewer').append(neighbor_div)
+
+          $('#activateDev'+device_id).click(function(){
+            txtActiveField = '#divNeighbor'+$(this).attr("value");
+            activated_node = $(this).attr("value");
+            $('.customized-badge').text('Activate')
+            $('.customized-badge').attr({'class':'badge bg-primary customized-badge'})
+            $(this).text('Activated')
+            $(this).attr({'class':'badge bg-success customized-badge'})
+            disable_node_if_selected($(this).attr("value"))
+          });
+
+          neighbors_dict[device_id] = []
+        }
+
+        $('#deviceViewer').append(device_html)
+
+        $('#node'+device_id).click({ActiveField: txtActiveField},function(){
+          this_class = $(this).attr('class')
+          if(txtActiveField == ''){
+            alert('Select device to add neighbors')
+            return
+          }
+          device_id = $(this).val()
+          var added_neighbors = neighbors_dict[activated_node]
+          if(jQuery.inArray(device_id,added_neighbors) == -1){
+            added_neighbors.push(device_id)
+            neighbors_dict[activated_node] = added_neighbors
+          }else{
+            var index = added_neighbors.indexOf(device_id);
+            if (index !== -1) {
+              added_neighbors.splice(index, 1);
+            }
+          }
+          $(txtActiveField).empty()
+          $.each(added_neighbors , function(i,val){
+            b = `<span class='badge bg-dark' style='margin:2px; border-radius:999px; padding:8px 10px; background: rgba(255,255,255,0.08) !important; border: 1px solid rgba(255,255,255,0.12);'>`+alldevices[val]+`</span>`
+            $(txtActiveField).append(b)
+          });
+        });
+      });
+
+      $('.offlinenodes').click(function(){
+        alert('Offline nodes cannot be added')
+      });
+    });
+  }
+
+  function disable_node_if_selected(selected_id){
+    $.each(neighbors_dict , function(i,val){
+      $('#node'+i).prop('disabled', false);
+      if(i == selected_id){
+        $('#node'+selected_id).prop('disabled', true);
+      }
+    });
+  }
+
+  function topology_tester(topology){
+    nodes_list = []
+    $.each(topology , function(i,val){ nodes_list.push(i) });
+    found_nodes = []
+    $.each(topology , function(i,val){
+      $.each(nodes_list , function(ii,v){
+        index = val.indexOf(v)
+        index2 = found_nodes.indexOf(v)
+        if(index != -1 && index2 == -1){
+          found_nodes.push(v)
+        }
+      });
+    });
+    result = nodes_list.every(r => found_nodes.includes(r))
+    return result
+  }
+
+  $('#btnUpdateCustomizedTopology').click(function(){
+    no_neighbor_error = false
+    $.each(neighbors_dict , function(i,val){
+      if(val == ''){
+        no_neighbor_error = true
+      }
+    });
+
+    if(no_neighbor_error){
+      alert("Topology Error: All nodes must have at least one neighbor")
+      return
+    }
+    if(topology_tester(neighbors_dict) == false){
+      alert("Topology Error: Each node must receive model from at least one node")
+      return
+    }
+
+    $.ajax({
+      data: {
+        topology: '3',
+        customized_topology: JSON.stringify(neighbors_dict),
+        r_type: 'construct_topology',
+        csrfmiddlewaretoken : csrf
+      },
+      dataType: "json",
+      type: 'POST',
+      url: '/APIs'
+    }).done(function(data){
+      if(data.status == 1){
+        alert("Topology Updated")
+      }else{
+        alert("Failed to update topology")
+      }
+      get_topology_routing()
+    });
+  });
+
+  $('#btnUpdateTopology').click(function(){
+    selected = $('#selectTopology').val()
+    if(selected == '0'){
+      alert("Plesase Select Topology")
+    }else if(selected == '3'){
+      alert("Plesase design a customized topology and update using \"Update Customized Topology\" button ")
+    }else{
+      $.ajax({
+        data: {
+          topology:selected,
+          r_type: 'construct_topology',
+          csrfmiddlewaretoken : csrf
+        },
+        type: 'POST',
+        url: '/APIs'
+      }).done(function(data){
+        get_topology_routing()
+        if(data.status == 1){
+          alert("Topology Updated")
+        }else{
+          alert("Failed to update topology")
+        }
+      });
+    }
+  })
+
+  function get_topology_routing(){
+    $.ajax({
+      data: {
+        r_type: 'get_topology',
+        csrfmiddlewaretoken : csrf
+      },
+      type: 'POST',
+      url: '/APIs'
+    }).done(function(data){
+      $("#routingtable").empty()
+      routing_table =`<table class="table">
+        <tr>
+          <th>Sender IP</th>
+          <th>Sender Port</th>
+          <th>Sender Status</th>
+          <th>Sender type</th>
+          <th>Receiver IP</th>
+          <th>Receiver Port</th>
+          <th>Receiver Status</th>
+          <th>Receiver type</th>
+          <th>Packet Type</th>
+        </tr>`
+
+      $.each(data.connections , async function(i,val){
+        s_status = '<span class="badge bg-success" style="border-radius:999px; padding:7px 10px;">Active</span>'
+        r_status = '<span class="badge bg-success" style="border-radius:999px; padding:7px 10px;">Active</span>'
+        if(val[3] == 0){
+          s_status = '<span class="badge bg-danger" style="border-radius:999px; padding:7px 10px;">Inactive</span>'
+        }
+        if(val[7] == 0){
+          r_status = '<span class="badge bg-danger" style="border-radius:999px; padding:7px 10px;">Inactive</span>'
+        }
+
+        routing_table += `<tr>
+          <td><span class="badge bg-dark" style="border-radius:999px; padding:7px 10px; background: rgba(255,255,255,0.08) !important; border: 1px solid rgba(255,255,255,0.12);">`+val[1]+`</span></td>
+          <td>`+val[2]+`</td>
+          <td>`+s_status+`</td>
+          <td>Raspberry Pi</td>
+          <td><span class="badge bg-warning" style="border-radius:999px; padding:7px 10px; background: rgba(255,204,102,0.20) !important; border: 1px solid rgba(255,204,102,0.35);">`+val[5]+`</span></td>
+          <td>`+val[6]+`</td>
+          <td>`+r_status+`</td>
+          <td>Raspberry Pi</td>
+          <td>JSON Model</td>
+        </tr>`
+      })
+
+      routing_table += `</table>`
+      $("#routingtable").append(routing_table)
+    });
+  }
+  get_topology_routing()
+</script>
+
+{% endblock content%}
