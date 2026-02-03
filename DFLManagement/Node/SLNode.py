@@ -838,6 +838,8 @@ class SLNode():
         self.update_log("--Training Completed--",6)
         return ['']
     
+
+    
     def learn_with_PSO(self):
         while(self.current_round <= self.rounds and self.early_stop == False):
             start_train_time = time.time()
@@ -888,157 +890,44 @@ class ErrorMethods:
         error = np.mean(error.numpy())
         return error
 
-class NAS:
-    def __init__(self,supernet_neurons, searchspacesize, activations, ip, port):
-        self.ip = ip
-        self.port = port
-        self.dataset = 'NAS_data'
-        self.X_train, self.X_test, self.y_train, self.y_test = self.load_tabnas_data()
-        self.supernet_neurons = supernet_neurons
-        self.searchspacesize = float(searchspacesize) if searchspacesize == float('inf') else int(searchspacesize)
-        self.activations = activations
-        self.DB = DBManager()
-        self.DTConfig = self.DB.get_dt_configuration()
-        self.warmup_epochs = 5
-        self.child_epochs = 2
-        self.id = self.get_device_id()
-        self.SuperNet = self.prepare_supernet()
-        self.choices = self.create_choices()
-        self.child_nets = self.get_combinations()
-        
-    def get_device_id(self):
-        device_id = self.DB.select_query("select id from devices where device_ip ='"+str(self.ip)+"' and port ="+str(self.port))
-        device_id = device_id.values.tolist()
-        return device_id[0][0]
-        
-    def create_choices(self):
-        choices = {}
-        for layer, neurons in enumerate(self.supernet_neurons):
-            choices['layer'+str(layer)] = [i for i in range (2,neurons+1)]
-        return choices
-    
-    def get_combinations(self):
-        layers = [self.choices[key] for key in sorted(self.choices.keys())]
-        combinations = [list(combination) for combination in product(*layers)]
-        if(self.searchspacesize == float('inf')):
-            return combinations
-        interval = len(combinations) // self.searchspacesize
-        sampled_combinations = [combinations[i] for i in range(0, len(combinations), interval)]
-        return sampled_combinations[:self.searchspacesize]
-        
-    def load_syn_data(self):
-        df = pd.read_csv('NAS data/'+self.dataset+'.csv')
-        y = df['label']
-        X = df.drop(['label'], axis = 1)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-        return X_train, X_test, y_train, y_test
-    
-    def load_tabnas_data(self):
-        df = pd.read_csv('NAS data/'+self.dataset+'.csv')
-        y = df['treatment']
-        X = df.drop(['treatment','conversion','visit', 'exposure'], axis = 1)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-        return X_train, X_test, y_train, y_test
-        
-    def prepare_supernet(self):
-        input_dim = self.X_train.shape[1]
-        num_labels = len(set(self.y_train))
-        model = Sequential()
-        model.add(Input(shape=(input_dim,)))
-        for n in self.supernet_neurons:
-            model.add(Dense(n, input_dim=input_dim, activation='relu'))
-            
-        model.add(Dense(num_labels, activation='softmax'))              # Output layer
-        model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-        return model
-    
-    def train_supernet(self):
-        history = self.SuperNet.fit(self.X_train, self.y_train, epochs=self.warmup_epochs, batch_size=32,
-                                 validation_data=(self.X_test, self.y_test))
+class FedProxClient:
+    def __init__(self, model, loss_fn, lr, mu):
+        self.model = model
+        self.loss_fn = loss_fn
+        self.lr = lr
+        self.mu = mu
+        self.optimizer = tf.keras.optimizers.SGD(learning_rate=lr)
 
-        weights = self.SuperNet.get_weights()
-        payload = {'weights': weights}
-        payloads = json.dumps(payload, cls=NumpyEncoder)
-        compress_json.dump(payloads, 'self/supernet.json.gz')
-        self.test_child_nets()
-        
-        
-    def get_child_network(self, neurons_to_keep):
-        
-        # Create the sub_model with the desired architecture
-        input_dim = self.SuperNet.layers[0].input_shape[1]
-        output_dim = self.SuperNet.layers[-1].output_shape[1]
-        neurons_to_keep.insert(0,input_dim)
-        neurons_to_keep.append(output_dim)
-        # Create the input layer
-        layers = [Input(shape=(input_dim,))]
+    def local_train(self, x, y, global_weights, local_epochs, batch_size):
+        """
+        FedProx local training
+        """
+        # Set reference (global) weights
+        self.model.set_weights(global_weights)
+        w_ref = [tf.convert_to_tensor(w) for w in global_weights]
 
-        # Add the hidden layers
-        for i in range(1, len(neurons_to_keep)-1):
-            layers.append(Dense(neurons_to_keep[i], activation='relu'))
+        dataset = tf.data.Dataset.from_tensor_slices((x, y))
+        dataset = dataset.shuffle(1024).batch(batch_size)
 
-        # Add the output layer
-        layers.append(Dense(output_dim, activation='softmax'))
+        for _ in range(local_epochs):
+            for xb, yb in dataset:
+                with tf.GradientTape() as tape:
+                    preds = self.model(xb, training=True)
+                    loss = self.loss_fn(yb, preds)
 
-        sub_model = Sequential(layers)
-        # Copy the weights from the SuperNet to sub_model
-        for i in range(len(neurons_to_keep)-1):
-            weights = self.SuperNet.layers[i].get_weights()
-            new_weights = [
-                weights[0][:neurons_to_keep[i], :neurons_to_keep[i+1]],
-                weights[1][:neurons_to_keep[i+1]]
-            ]
-            sub_model.layers[i].set_weights(new_weights)
+                    # Proximal term
+                    prox_term = 0.0
+                    for w, w0 in zip(self.model.trainable_variables, w_ref):
+                        prox_term += tf.reduce_sum(tf.square(w - w0))
 
+                    loss += (self.mu / 2.0) * prox_term
 
+                grads = tape.gradient(loss, self.model.trainable_variables)
+                self.optimizer.apply_gradients(
+                    zip(grads, self.model.trainable_variables)
+                )
 
-        return sub_model
-    
-    def insert_to_database(self, key, value):
-        key_str = str(key)
-        value = round(value, 2)
-        self.DB.query_executer("INSERT INTO nas_child_performance (child_network, `"+str(self.id)+"`) VALUES ('"+str(key_str)+"','"+ str(value)+"') ON DUPLICATE KEY UPDATE  `"+str(self.id)+"` = '"+ str(value)+"';")
-    
-    def retrain_child_model(self, child_model):
-        child_model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-        child_model.fit(self.X_train, self.y_train, epochs=self.child_epochs, batch_size=32,
-                                 validation_data=(self.X_test, self.y_test))
-        return child_model
-    
-    def test_child_nets(self):
-        rewards = {}
-        for child in self.child_nets: 
-            child_copy = child.copy()
-            child_model = self.get_child_network(child_copy)
-            child_model = self.retrain_child_model(child_model)
-            try:
-                y_pred = child_model.predict(self.X_test)
-                y_pred_classes = np.argmax(y_pred, axis=1)
-                accuracy = accuracy_score(self.y_test, y_pred_classes)
-                rewards[tuple(child)] = accuracy
-                self.insert_to_database(tuple(child),accuracy )
-                print(child, accuracy,'++')
-            except:
-                print('Error with ', child)
-        #self.insert_to_database(rewards)
-        
-        return rewards
-
-# nas = NAS()
-# print(nas.child_nets)
-# nas.train_supernet()
-# r = nas.test_child_nets()
-# s = SLNode('117.17.99.47',5001,1)
-
-# print(s.y_test)
-
-# s.train_model()
-# s.evaluate_neighbors_models()
-# s.X_train.shape
-# s.get_initial_model()
-
-# print(nas.SuperNet.layers[0].get_weights()[0].shape)
-
+        return self.model.get_weights()
 
 
 

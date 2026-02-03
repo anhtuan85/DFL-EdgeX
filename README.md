@@ -32,5 +32,5 @@ python App.py
 ``` -->
 
 ## Register new device to Digital Twin
-[Updating...](./docs/)
+[Please refer to the documents.](./docs/)
 
