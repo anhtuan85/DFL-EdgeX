@@ -26,10 +26,10 @@ Check and run the source code in folder `Dataset-generation`
 python ./manage.py runserver 0.0.0.0:8000
 ```
 
-<!-- 4. Run folder DFLNode in each edge node
+4. Run folder DFLNode in each edge node
 ```
 python App.py
-``` -->
+```
 
 ## Register new device to Digital Twin
 [Please refer to the documents.](./docs/)

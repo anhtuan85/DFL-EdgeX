@@ -1,0 +1,662 @@
+{% extends 'home.html'%}
+
+{% block content%}
+{% csrf_token %}
+
+
+
+<div class="col-lg-2 col-md-2 col-sm-2"> 
+    <div class="card" style = ' width: 100%; margin-top: 5px;; margin-bottom: auto;height: 100%'>
+        <div class="card-body">
+            <b style = 'color: #812;  margin: auto;'>Setup Configuration</b>
+            <div><br>
+                <label for="txtDeviceIP">Select Model</label>
+                <select class="form-control" id="selectModel">
+                    <option>Select Model</option>
+                </select>
+                <br>
+                <label for="txtDeviceIP">Select Dataset</label>
+                <select class="form-control" id="selectDataset">
+                    <option>Select Dataset</option>
+                    <option value = 'Energy'>Energy</option>
+                    <option value = 'CIFAR10'>CIFAR10</option>
+                    <option value = 'CIFAR10Img'>CIFAR10Img</option>
+                    <option value = 'Synthetic'>Synthetic</option>
+                    <option value = 'Churn'>Churn Data</option>
+                    <option value = 'MINIST'>MINIST</option>
+                    <option value = 'CIFAR10pt'>CIFAR10pt</option>
+                    <option value = 'Thermal'>Thermal</option>
+                    <option value = 'Covtype'>Covtype</option>
+                </select>
+                <br>
+                <label for="">Rounds</label>
+                <input type="number" class="form-control" id="txtRounds" aria-describedby="emailHelp" placeholder="">
+                <br>
+                <label for="">Local Epochs</label>
+                <input type="number" class="form-control" id="txtEpochs" aria-describedby="emailHelp" placeholder="">
+                <br>
+                <center><button class = 'btn btn-primary' id='btnUpdateConfig' style = 'width: 100%'>Update Configurations</button>  </center><br>
+                <div style = 'width: 100%; height: 2px; background: #9B1212;' ></div> <br>
+                <b style = 'color: #812;  margin: auto;'>Selected Model Info</b>
+                <div style = 'width: 100%; height: auto; border: 1px solid #123; border-radius: 10%; '>
+                </div>
+                <div id="modelInfo">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="col-lg-7 col-md-5 col-sm-12" style="margin-top: 10px;">
+    <div id = "mydiv">
+        
+    </div>
+</div>
+<div class="col-lg-3">
+    <div class="card" style = ' width: 100%; margin-top: 5px;; margin-bottom: auto;height: 100%'>
+        <div class="card-body">
+            <b style = 'color: #812;  margin: auto;'>DFL Configuration</b>
+            <div><br>
+                <label for="txtDeviceIP">Dataset: <span id="spanselecteddataset" class="badge bg-dark">Energy</span></label>
+                <br>
+                <label for="">Rounds: <span id="spanselectedrounds" class="badge bg-dark">10</span> </label>
+                <br>
+                <label for="">Local Epochs: <span id="spanselectedepocs" class="badge bg-dark">5</span> </label>
+                <br>
+                <div style = 'width: 100%; height: 2px; background: #9B1212;' ></div> <br>
+                <b style = 'color: #812;  margin: auto;'>Selected Model Info</b>
+                <div style = 'width: 100%; height: auto; border: 1px solid #123; border-radius: 10%; '>
+                </div>
+                <br>
+                <div id="div_selected_model_info">
+                </div>
+                <div id="divLogCard" class="card" style = 'margin-bottom: auto;'>
+                    <div class="card-body" id="div-startSLbtn">
+                        <input class='form-control' type = 'number' placeholder = 'Entter Round Number if required' id = 'txtEnterRoundNumber'/>
+                        <center>  <b class="card-title" style = 'color: #812'>Start DFL Learning Here</b>
+                            <button class="btn btn-success" id="bthStartSL" style="width: 100%">Start DFL </button> <br><br>
+                            <button class="btn btn-info" onclick="export_results()" style="width: 100%">Export Results</button>
+                        </center>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row" style="margin-top: 270px; width: 100%; height 20px; padding: 3px;" id="log-device-container" >
+</div>
+
+
+
+<script type="text/javascript">
+
+
+
+    var radius_ = 0;
+    (function ( $ ) {
+
+        $.fn.incircle = function(options) {
+
+            // Default options.
+            var settings = $.extend({
+                color: "#556b2f",
+                backgroundColor: "red",
+                type : 1, //circle type - 1 whole, 0.5 half, 0.25 quarter
+                radius : radius_+'em', //distance from center
+                start : -90, //shift start from 0
+                top: '350px',
+                left: '350px'
+            }, options );
+
+            this.css({
+                'position': 'relative', 
+                'top': settings.top,
+                'left': settings.left,
+                'list-style-type': 'none',
+                'margin': 0,
+                'padding': 0
+            });
+
+            $elements = this.children(':not(:first-child)');
+            numberOfElements = (settings.type === 1) ?  $elements.length : $elements.length - 1; //adj for even distro of elements when not full circle
+            slice = 360 * settings.type / numberOfElements;
+
+            $elements.each(function(i) {
+                var $self = $(this),
+                    rotate = slice * i + settings.start,
+                    rotateReverse = rotate * -1;
+
+                $self.css({
+                    'position': 'absolute',
+                    '-webkit-transition': 'all 2s linear',
+                    '-moz-transition': 'all 2s linear',
+                    'transition': 'all 2s linear'
+                });
+
+                $self.css({
+                    'transform': 'rotate(' + rotate + 'deg) translate(' + settings.radius + ') rotate(' + rotateReverse + 'deg)'
+                });
+            });
+
+            return this;
+        };
+
+    }( jQuery ));
+
+
+    function create_device_template(text_size,device_ip,device_port,device_status, animation_type,d_name,memory,cpu){
+
+        c = '#FBFBFB'
+        border = '2px solid #11CC05'
+        button = `<span class="badge bg-success" style='width:100%'>Active</span> <br>`
+        //        <button class="btn btn-outline-success btn-sm btngetInfo" style='margin-top: 3px; width:100%' value = `+device_ip+":"+device_port+` id = "btngetInfo" >Meta Data </button>
+        if(animation_type ==true){
+            //            button =`<i class="fa fa-refresh fa-spin fa-3x fa-fw"></i>`
+        }
+
+
+        toggle_button = `<button class="btn btn-outline-danger btn-custom-sm btndeactivate" style='margin-top: 3px; width:100%' value = `+device_ip+":"+device_port+` id = "btngetInfo" >Deactivate</button>`
+
+        if(device_status == 0){
+            c ='#FFD9D6'
+            border = '2px solid #CC3905'
+            button = `<span class="badge bg-danger" style='width:100%'>Offline</span> <br>`
+            //            <button class="btn btn-outline-danger btn-sm btngetInfo"  style='margin-top: 3px; width:100%' value = `+device_ip+":"+device_port+` id = "btngetInfo" disabled>Meta Data </button>
+
+            toggle_button = `<button class="btn btn-outline-success btn-custom-sm btnactivate" style='margin-top: 3px; width:100%' value = `+device_ip+":"+device_port+` id = "btngetInfo" >Activate</button>`
+        }
+        
+//        <button class='btn btn-sm' style='width:100%; background:#52AB36'><span class="fa fa-microchip  fa-3x fa-fw" style='font-size:15px; color:#5D0200;'></span><span>`+cpu+` MHz</span> <span style='font-size:15px; color:#5D0200;' class="fa-solid fa-memory"></span> <span>`+memory+` GB</span></button> Button to display cpu and memory
+        
+        
+        process = ''
+        d = ` <div class="card" style = 'border: `+border+`; font-size: 10px'>
+<center>
+<p style='width:100px; margin-bottom: -3px;'><b>`+d_name+`</b></p>
+<div  id = dev`+device_ip+""+device_port+`>
+
+
+<div class=" devicecard" style = 'background: `+c+`; padding:5px;'>
+<span class="badge bg-dark" id="h5deviceIP" style = 'margin-bottom:5px; width:100%'>`+device_ip+`:`+device_port+`</span><br>
+
+`+button+ toggle_button+` 
+    </div></div>
+    </center>
+    </div>`
+        return d
+    }
+
+
+    connection_lines = []
+    function make_connection(animation_type){
+        $.ajax({
+            data:{
+                r_type: 'get_topology',
+                csrfmiddlewaretoken : csrf
+            },
+            type: 'POST',
+            url: '/APIs'
+        }).done(function(data){
+            $.each(connection_lines, async function(i,val){
+                val.remove();
+            });
+            $.each(data.connections , async function(i,val){
+                s = document.getElementById('dev'+val[1]+''+val[2])
+                e = document.getElementById('dev'+val[5]+''+val[6])
+                arrow_type = ''
+                if(val[8] == 'two'){
+                    arrow_type = 'arrow1'
+                }
+
+                connection_line = new LeaderLine(s,e,{dash: {animation: animation_type},color:"#01A2ED",startPlug: arrow_type,dropShadow: {color: 'green', dx: 0, dy: 0}, size:1});
+                connection_lines.push(connection_line)
+            });
+        });       
+    }
+
+    var csrf = $('input[name =csrfmiddlewaretoken]').val();
+    function sleep(time) {
+        return new Promise(resolve => setTimeout(resolve, time));
+    }
+    function wait_for_circle(){
+        console.log("Wating end")
+    }
+
+    function update_devices(animation_type){
+        $('#mydiv').empty()
+        $('#mydiv').append('<div></div>')
+        $.ajax({
+            data:{
+                r_type: 'getDevices',
+                csrfmiddlewaretoken : csrf
+            },
+            type: 'POST',
+            url: '/APIs'
+        }).done(function(data){
+            n_devices = 0
+            $.each(data.devices , async function(i,val){
+                var device_ip = val[1]
+                var device_port = val[2]
+                var device_status = val[3]
+                var d_name = val[4]
+                var memory = val[5]
+                var cpu = val[6]
+
+
+                device_html = create_device_template(10,device_ip,device_port,device_status,animation_type,d_name,memory,cpu)
+                $('#mydiv').append(device_html)
+                n_devices += 1
+
+
+            });
+
+            radius_ = n_devices * 1.8
+            
+            jQuery(document).ready(function(){
+                jQuery('#mydiv').incircle({type: 1, start:360});
+            });
+
+        
+            make_connection(animation_type)
+
+            $('.btnactivate').click(function(){
+                ip_port = $(this).val()
+                ip_port = ip_port.split(':')
+                $.ajax({
+                    data: {
+                        ip: ip_port[0],
+                        port: ip_port[1],
+                        status: 1,
+                        r_type: 'change_device_status',
+                        csrfmiddlewaretoken : csrf
+                    },
+                    type: 'POST',
+                    url: '/APIs'
+                }).done(function(data){
+                    update_devices(false)
+                    prepare_log_area()
+                });
+            });
+            $('.btndeactivate').click(function(){
+                ip_port = $(this).val()
+                ip_port = ip_port.split(':')
+                $.ajax({
+                    data: {
+                        ip: ip_port[0],
+                        port: ip_port[1],
+                        status: 0,
+                        r_type: 'change_device_status',
+                        csrfmiddlewaretoken : csrf
+                    },
+                    type: 'POST',
+                    url: '/APIs'
+                }).done(function(data){
+                    update_devices(false)
+                    prepare_log_area()
+                });
+            });
+
+
+        });
+    }
+
+    update_devices(false)
+    var csrf = $('input[name =csrfmiddlewaretoken]').val();
+
+
+    function get_configurations(){
+        $.ajax({
+            data:{
+                r_type: 'get_configuration',
+                csrfmiddlewaretoken : csrf
+            },
+            type: 'POST',
+            url: '/APIs'
+        }).done(function(data){
+            var conf = data.conf
+            $("#spanselecteddataset").text(conf[0][2])
+            $("#spanselectedrounds").text(conf[0][3])
+            $("#spanselectedepocs").text(conf[0][4])
+            model_id = conf[0][1]
+            div_id = '#div_selected_model_info'
+            //get_model_info(model_id,div_id)
+
+        });
+    }
+    get_configurations()
+    function get_models(){
+        $.ajax({
+            data:{
+                r_type: 'getmodels_dropdown',
+                csrfmiddlewaretoken : csrf
+            },
+            type: 'POST',
+            url: '/APIs'
+        }).done(function(data){
+            $('#selectModel').empty()
+            options = '<option value = 0>Select Model</option>'
+            n_devices = 0
+            $.each(data.models , async function(i,val){
+                options += '<option value= '+val[0]+'>'+val[1]+'</option>'
+            });
+            $('#selectModel').append(options)
+        });
+    }
+    get_models()
+
+    function List_models(model){
+        inputshape = 0
+        outputshape = 0
+        fetched_layers = []
+        layers = model['config']['layers']
+        for (let i = 0; i < layers.length; i++) {
+            var layer = {};
+            layer['type'] = layers[i]['class_name']
+            layer['units'] = layers[i]['config']['units']
+            layer['activation'] = layers[i]['config']['activation']
+            layer['use_bias'] = layers[i]['config']['use_bias']
+            layer['kernel_initializer'] = layers[i]['config']['kernel_initializer']['class_name']
+            layer['bias_initializer'] = layers[i]['config']['bias_initializer']['class_name']
+            layer['trainable'] = layers[i]['config']['trainable']
+
+            if(i == 0){
+                inputshape = layers[i]['config']['batch_input_shape']
+                layer['inputshape'] = inputshape
+            }
+            if(i== layers.length -1){
+                outputshape = layers[i]['config']['units']
+                layer['outputshape'] = outputshape
+            }
+            fetched_layers.push(layer)
+
+        }
+        return [inputshape, outputshape, fetched_layers]  
+    }
+
+    function create_models_div(model_name,inputshape, outputshape, layers_info, div_id){        
+        m = `<div class="card" style="padding: 5px; margin:5px;">
+<h6 class="card-title">Model Name:`+model_name+` </h6>
+<div class="card-body">
+<span class="badge bg-primary">Input Shape `+inputshape+`</span>
+<span class="badge bg-primary">Output Shape `+outputshape+`</span>
+<br><div style="width:100%; height:2px; background-color:#a21; margin:2px;"></div>`
+        layers_styles = ['success', 'danger','warning', 'info','dark']
+        ii = 0
+        for (let i = 0; i < layers_info.length; i++) {
+            if(ii >= layers_styles.length){
+                ii = 0
+            }
+            s = layers_styles[ii]
+            lay = ` <span class="badge bg-`+s+`">`+i+`</span>
+<span class="badge bg-`+s+`">`+layers_info[i]['type']+`</span>
+<span class="badge bg-`+s+`">`+layers_info[i]['units']+`</span>
+<span class="badge bg-`+s+`">`+layers_info[i]['activation']+`</span>
+<span class="badge bg-`+s+`">`+layers_info[i]['use_bias']+`</span>
+<span class="badge bg-`+s+`">`+layers_info[i]['kernel_initializer']+`</span>
+<span class="badge bg-`+s+`">`+layers_info[i]['bias_initializer']+`</span>
+<span class="badge bg-`+s+`">`+layers_info[i]['trainable']+`</span> <br><div style="width:100%; height:2px; background-color:#a21; margin:2px;"></div>`
+            m += lay;
+            ii++;
+        }
+        m += `</div></div>`
+        $(div_id).append(m)
+    }
+
+    function get_model_info(model_id, div_id){
+        $.ajax({
+            data:{
+                r_type: 'getmodels_info',
+                model_id: model_id,
+                csrfmiddlewaretoken : csrf
+            },
+            type: 'POST',
+            url: '/APIs'
+        }).done(function(data){
+            $(div_id).empty()
+            $.each(data.info , async function(i,val){
+                model_name = val[1]
+                model_info = val[2]
+                console.log(model_info)
+                fetched_layers = List_models(model_info)
+                inputshape = fetched_layers[0]
+                outputshape = fetched_layers[1]
+                layers_info = fetched_layers[2]
+                create_models_div(model_name,inputshape, outputshape, layers_info,div_id)
+                console.log(fetched_layers)
+                console.log('----------------------------------')
+
+            });
+        });
+    }
+    $('#selectModel').change(function(){
+        model_id = $(this).val()
+        div_id = '#modelInfo'
+        //get_model_info(model_id,div_id)
+    });
+
+    $('#btnUpdateConfig').click(function(){
+        $.ajax({
+            data:{
+                r_type: 'update_configuration',
+                model: $('#selectModel').val(),
+                dataset: $('#selectDataset').val(),
+                rounds: $('#txtRounds').val(),
+                epochs: $('#txtEpochs').val(),
+                csrfmiddlewaretoken : csrf
+            },
+            type: 'POST',
+            url: '/APIs'
+        }).done(function(data){
+            if(data.status == 1){
+                alert('Configuration Updated')
+            }else{
+                alert('Failed to update configuration')
+            }
+        });
+    });
+
+    function get_SL_log(){
+        log_id = 0
+        while(true){
+            $.ajax({
+                data:{
+                    r_type: 'getLog',
+                    log_id: log_id,
+                    csrfmiddlewaretoken : csrf
+                },
+                type: 'POST',
+                url: '/APIs'
+            }).done(function(data){
+                $.each(data.log , async function(i,val){
+                    console.log(val)
+                });
+            });
+            sleep(300)
+        }
+    }
+
+    var log_id = 0
+    var get_log_flag = true;
+    function get_SL_log() {         
+        setTimeout(function() {   //  call a 3s setTimeout when the loop is called
+            $.ajax({
+                data:{
+                    r_type: 'getLog',
+                    log_id: log_id,
+                    csrfmiddlewaretoken : csrf
+                },
+                type: 'POST',
+                url: '/APIs'
+            }).done(function(data){
+                layers_styles = ['success', 'danger','warning', 'info','dark']
+                $.each(data.log , async function(i,val){
+                    s = log_msg_type_color(val[3])
+                    l = `<span style='margin:2px;' class="badge bg-`+s+`">`+val[2]+`</span>`
+                    //                    $("#divlog-"+val[0]).append(l)
+                    $(l).hide().appendTo("#divlog-"+val[1]).show('slow');
+                    //                    var color = '#'+Math.floor(Math.random()*16777215).toString(16);
+                    //                    d =`<p style ='color:`+color+`; font-size: 13px'><b>`+val[3]+':'+val[4]+`</b>-- `+val[2]+`</p><div style = 'width: 100%; height: 1px; background: #9B1212;' ></div>`
+                    //                    //                    $('#divLog').append(d);
+                    //                    $(d).hide().appendTo('#divLog').show('slow');
+                    log_id = val[0]
+                });
+            });
+            if(get_log_flag){
+                get_SL_log();
+            }
+                      //  ..  again which will trigger another 
+            //  ..  setTimeout()
+        }, 1000)
+    }
+
+    function log_msg_type_color(msg_id){
+        switch (msg_id) {
+            case 1:
+                return 'secondary'
+                break;
+            case 2:
+                return 'danger'
+                break;
+            case 3:
+                return 'warning' 
+                break;
+            case 4:
+                return 'info'
+                break;
+            case 5:
+                return 'dark'
+                break;
+            case 6:
+                return 'success'
+                break;
+            default:
+                return 'light text-dark'
+                break;
+        }
+    }
+
+    function prepare_log_area(){
+        $("#log-device-container").empty()
+        $.ajax({
+            data:{
+                r_type: 'getDevices',
+                csrfmiddlewaretoken : csrf
+            },
+            type: 'POST',
+            url: '/APIs'
+        }).done(function(data){
+            n_devices = 0
+            $.each(data.devices , async function(i,val){
+                var device_id = val[0]
+                var device_ip = val[1]
+                var device_port = val[2]
+                var device_status = val[3]
+                var d_name = val[4]
+                var memory = val[5]
+                var cpu = val[6] 
+                if(device_status == 1){
+                    log_div = `<div class="col-lg-2 col-md-3 col-sm-6">
+<div class="card" style="padding: 5px;" id="divlog-`+device_id+`">
+Device ID: `+device_id+`
+<h6 class="card-title">`+device_ip+`:`+device_port+`</h6>
+
+    </div>
+    </div>`
+                    $("#log-device-container").append(log_div)
+                }
+            });
+        });
+    }
+    prepare_log_area()
+    $('#bthStartSL').click(function(){
+        $("#div-startSLbtn").append(`<box-icon id = 'startSLprocess' size = "30px" name='shape-circle' animation='spin' ></box-icon>`)
+        $("#div-startSLbtn").append(`<center><button onclick="early_stop(this.id)" class = 'btn btn-outline-danger' id = 'btnearlystop'> Stop Learning</button></center>`)
+
+        $(this).prop('disabled', true);
+        update_devices(false)
+        
+        //        start_information_thread()
+        r_number = $('#txtEnterRoundNumber').val()
+        if(r_number == ''){
+            r_number = '1'
+        }
+        
+        $.ajax({
+            data:{
+                csrfmiddlewaretoken : csrf,
+                roundnumber : r_number
+            },
+            type: 'POST',
+            url: '/start_SL'
+        }).done(function(data){
+            if(data.status == 1){
+                get_SL_log()
+            }else{
+                alert('Failed to start')
+            }
+        });
+    });
+
+    function early_stop(btn_id){
+        $.ajax({
+            data:{
+                r_type: "early_stop",
+                csrfmiddlewaretoken : csrf
+            },
+            type: 'POST',
+            url: '/APIs'
+        }).done(function(data){
+            if(data.status == 1){
+                $('#bthStartSL').prop('disabled', false);
+                $("#startSLprocess").remove()
+                update_devices(false)
+                $('#btnearlystop').remove()
+                
+                
+            }else{
+                alert('Failed to stop')
+            }
+        });
+
+    }
+
+    function continue_SL_process(){
+        $.ajax({
+            data:{
+                r_type: 'get_configuration',
+                csrfmiddlewaretoken : csrf
+            },
+            type: 'POST',
+            url: '/APIs'
+        }).done(function(data){
+            var conf = data.conf
+            if(conf[0][5] == 1){
+                $("#div-startSLbtn").append(`<box-icon id = 'startSLprocess' size = "30px" name='shape-circle' animation='spin' ></box-icon>`)
+                $("#div-startSLbtn").append(`<button onclick="early_stop(this.id)" class = 'btn btn-outline-danger' id = 'btnearlystop'>Early Stop </button>`)
+                $('#bthStartSL').prop('disabled', true);
+                update_devices(false)
+                get_SL_log()
+            }
+
+        });
+    }
+    continue_SL_process()
+    
+    function export_results(){
+        $.ajax({
+            data:{
+                r_type: 'export_results',
+                csrfmiddlewaretoken : csrf
+            },
+            type: 'POST',
+            url: '/APIs'
+        }).done(function(data){
+            if(data.status == 1){
+                alert('Results Saved')
+            }else{
+                 alert('Failed to Export Results')
+            }
+        });
+    }
+</script>
+{% endblock content%}
